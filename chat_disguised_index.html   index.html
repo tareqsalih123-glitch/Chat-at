@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>محادثة محمية — تحكم المالك وحفظ الصور</title>
+  <style>
+    body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f0f0f0;color:#111}
+    header{background:#4CAF50;color:white;text-align:center;padding:10px;font-size:20px;font-weight:bold}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:10px}
+    .photo{width:100%;height:180px;border-radius:8px;overflow:hidden;position:relative;background:#ddd}
+    .photo img{width:100%;height:100%;object-fit:cover;display:block;user-select:none;-webkit-user-drag:none}
+    .menu-icon{position:fixed;top:10px;left:10px;background:white;border-radius:50%;width:44px;height:44px;display:flex;justify-content:center;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);cursor:pointer;z-index:50}
+    .menu{display:none;position:fixed;top:64px;left:10px;background:white;padding:10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.3);z-index:50}
+    .menu a{display:block;color:#333;text-decoration:none;padding:8px;border-radius:5px}
+    .menu a:hover{background:#eee}
+
+    .blackout{position:fixed;inset:0;background:#000;opacity:1;z-index:9999;display:none;align-items:center;justify-content:center;color:#fff;font-size:18px}
+
+    .chat-container{width:100%;max-width:820px;height:88vh;background:#fff;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+    .chat-header{background:#1877f2;color:#fff;padding:12px;text-align:center;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
+    .messages{flex:1;overflow-y:auto;padding:12px;background:#f7f7f7;display:flex;flex-direction:column;gap:8px}
+    .msg{padding:8px;border-radius:10px;max-width:75%;position:relative}
+    .me{background:#dcf8c6;margin-left:auto}
+    .other{background:#fff;margin-right:auto}
+    .msg .meta{font-size:11px;color:#666;margin-bottom:6px}
+    .msg .actions{position:absolute;left:6px;top:6px;font-size:12px;display:flex;gap:6px}
+    .input-area{display:flex;padding:8px;background:#f0f0f0;gap:6px}
+    .input-area input{flex:1;padding:8px;border:1px solid #ccc;border-radius:20px;outline:none}
+    .input-area button{background:#1877f2;color:white;border:none;padding:8px 12px;border-radius:20px;cursor:pointer}
+    .small{font-size:12px;color:#666}
+    .owner-badge{font-size:12px;color:#fff;background:#2b8a3e;padding:4px 8px;border-radius:8px}
+
+    /* منع التحديد والنقر الأيمن */
+    body, img { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+  </style>
+</head>
+<body>
+  <header>مناظر طبيعية</header>
+
+  <!-- أيقونة القائمة المنبثقة -->
+  <div class="menu-icon" id="menuBtn" title="القائمة">☰</div>
+
+  <!-- قائمة الخيارات الرئيسية -->
+  <div class="menu" id="menu">
+    <a href="#" id="goToChat">🔒 دخول المحادثة السرية</a>
+    <a href="#" id="showOwnerLogin">🔑 (مالك) تسجيل الدخول</a>
+    <div id="ownerActions" class="hidden">
+      <a href="#" id="changeCode">تغيير رمز الغرفة</a>
+      <a href="#" id="revokeShare">إبطال مشاركة الكود</a>
+      <a href="#" id="downloadSaved">⬇️ تنزيل كل الصور المحفوظة (مالك)</a>
+    </div>
+  </div>
+
+  <!-- معرض الصور التوضيحي -->
+  <div class="gallery" id="gallery">
+    <div class="photo"><img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80" alt="طبيعة"></div>
+    <div class="photo"><img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=800&q=80" alt="غابة"></div>
+    <div class="photo"><img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=800&q=80" alt="شلال"></div>
+    <div class="photo"><img src="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=800&q=80" alt="بحيرة"></div>
+    <div class="photo"><img src="https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=80" alt="صحراء"></div>
+  </div>
+
+  <!-- شاشة سوداء لحماية الخصوصية عند اللقطات -->
+  <div class="blackout" id="blackout">الشاشة مخفية لحماية الخصوصية</div>
+
+  <script>
+    // ---------- مفاتيح التخزين المحلي ----------
+    const LS_CHAT_CODE = 'chatCode_v3';  // رمز الغرفة المستخدم للدخول
+    const LS_OWNER_KEY = 'chatOwnerKey_v3';  // كلمة مرور المالك
+    const LS_LOCK_CODE = 'lockCode_v3'; // رمز القفل الشخصي لكل محادثة
+    const LS_MESSAGES = 'chat_messages_v3'; // تخزين الرسائل
+    const LS_OWNER_SAVED = 'owner_saved_images_v3'; // الصور المحفوظة للمالك
+
+    // ---------- توليد أو قراءة معرف المستخدم المحلي ----------
+    let userId = localStorage.getItem('chat_user_id');
+    if(!userId){
+      // إذا لم يوجد معرف مسبق، نولّد واحد عشوائي
+      userId = 'u_' + Math.random().toString(36).slice(2,9);
+      localStorage.setItem('chat_user_id', userId);
+    }
+
+    // ---------- إعداد رمز الغرفة ----------
+    let chatCode = 'TAREQ2007@'; // رمز المالك ثابت
+    localStorage.setItem(LS_CHAT_CODE, chatCode);
+
+    // ---------- إعداد مالك المحادثة ----------
+    let ownerKey = localStorage.getItem(LS_OWNER_KEY);
+    if(!ownerKey){
+      // في المرة الأولى، يطلب من المالك إدخال كلمة المرور
+      ownerKey = prompt('أدخل كلمة مرور المالك لتمكين إعدادات الحماية (احتفظ بها سريا):');
+      if(ownerKey){
+        localStorage.setItem(LS_OWNER_KEY, ownerKey);
+        alert('تم تعيين كلمة مرور المالك.');
+      }
+    }
+
+    // ---------- عناصر واجهة المستخدم ----------
+    const menuBtn = document.getElementById('menuBtn'); // زر القائمة
+    const menu = document.getElementById('menu'); // القائمة
+    const goToChat = document.getElementById('goToChat'); // رابط الدخول للمحادثة
+    const showOwnerLogin = document.getElementById('showOwnerLogin'); // رابط تسجيل دخول المالك
+    const ownerActions = document.getElementById('ownerActions'); // قائمة تحكم المالك
+    const changeCodeLink = document.getElementById('changeCode'); // تغيير رمز الغرفة
+    const revokeShare = document.getElementById('revokeShare'); // إبطال مشاركة الكود
+    const downloadSaved = document.getElementById('downloadSaved'); // تنزيل الصور المحفوظة
+    const blackout = document.getElementById('blackout'); // شاشة حماية الخصوصية
+
+    // ---------- التحكم في إظهار وإخفاء القائمة ----------
+    menuBtn.onclick = ()=>{
+      // إذا كانت القائمة مرئية، اخفها، وإذا كانت مخفية، أظهرها
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // ---------- ملاحظات مهمة ----------
+    // يمكن إضافة هنا التحكم الكامل بالرسائل، حفظ الصور، تحديث رمز الغرفة،
+    // منع لقطة الشاشة أو عرض الصور في حالة اكتشافها.
+
+  </script>
+</body>
+</html>

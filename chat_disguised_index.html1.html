@@ -1,0 +1,77 @@
+// script.js
+
+// ---------- مفاتيح التخزين المحلي ----------
+const LS_CHAT_CODE = 'chatCode_v3';
+const LS_OWNER_KEY = 'chatOwnerKey_v3';
+const LS_LOCK_CODE = 'lockCode_v3';
+const LS_MESSAGES = 'chat_messages_v3';
+const LS_OWNER_SAVED = 'owner_saved_images_v3';
+const LS_GROUPS = 'chat_groups_v1';
+
+// ---------- توليد أو قراءة معرف المستخدم ----------
+let userId = localStorage.getItem('chat_user_id');
+if(!userId){
+  userId = 'u_' + Math.random().toString(36).slice(2,9);
+  localStorage.setItem('chat_user_id', userId);
+}
+
+// ---------- رمز الغرفة ----------
+let chatCode = 'TAREQ2007@';
+localStorage.setItem(LS_CHAT_CODE, chatCode);
+
+// ---------- إعداد مالك المحادثة ----------
+let ownerKey = localStorage.getItem(LS_OWNER_KEY);
+if(!ownerKey){
+  ownerKey = prompt('أدخل كلمة مرور المالك لتمكين إعدادات الحماية (احتفظ بها سريا):');
+  if(ownerKey){
+    localStorage.setItem(LS_OWNER_KEY, ownerKey);
+    alert('تم تعيين كلمة مرور المالك.');
+  }
+}
+
+// ---------- عناصر الواجهة ----------
+const menuBtn = document.getElementById('menuBtn');
+const menu = document.getElementById('menu');
+const goToChat = document.getElementById('goToChat');
+const showOwnerLogin = document.getElementById('showOwnerLogin');
+const ownerActions = document.getElementById('ownerActions');
+const changeCodeLink = document.getElementById('changeCode');
+const revokeShare = document.getElementById('revokeShare');
+const downloadSaved = document.getElementById('downloadSaved');
+const blackout = document.getElementById('blackout');
+
+// ---------- التحكم بالقائمة ----------
+menuBtn.onclick = ()=>{
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+// ---------- المجموعات ----------
+let groups = JSON.parse(localStorage.getItem(LS_GROUPS)) || [];
+let currentGroup = null;
+
+function createGroup(groupName){
+  if(!groupName) return alert('أدخل اسم المجموعة');
+  const groupCode = 'g_' + Math.random().toString(36).slice(2,6);
+  groups.push({ name: groupName, code: groupCode, messages: [] });
+  localStorage.setItem(LS_GROUPS, JSON.stringify(groups));
+  alert('تم إنشاء المجموعة! الرمز الخاص بها: ' + groupCode);
+}
+
+function joinGroup(code){
+  const group = groups.find(g => g.code === code);
+  if(!group) return alert('رمز المجموعة غير صحيح.');
+  currentGroup = group;
+  renderMessages(currentGroup.messages);
+}
+
+function sendMessage(text, sender){
+  if(!currentGroup) return alert('اختر مجموعة أولاً.');
+  const message = { sender, text, time: new Date().toISOString() };
+  currentGroup.messages.push(message);
+  localStorage.setItem(LS_GROUPS, JSON.stringify(groups));
+  renderMessages(currentGroup.messages);
+}
+
+function renderMessages(messages){
+  // وظيفة عرض الرسائل في واجهة الدردشة (يمكن تعديلها لاحقاً)
+  console.log(mess
